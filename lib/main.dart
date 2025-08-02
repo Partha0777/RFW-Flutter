@@ -62,8 +62,9 @@ widget root = OnInit(
     children: [
 
       // ── CONTENT (only when we have data)
-      ShowWhen(
-        when: data.apiResponse.hasData,
+      ShowIfEqString(
+         left: data.apiResponse.status,
+         right: "success", 
         child: SingleChildScrollView(
           scrollDirection: "horizontal",
           child: Row(
@@ -151,57 +152,6 @@ widget root = OnInit(
         ),
       ),
 
-      // ── LOADING: small spinner overlay (on top of skeletons)
-      ShowWhen(
-        when: data.apiResponse.isLoading,
-        child: Center(
-          child: Loader(strokeWidth: 2.0),
-        ),
-      ),
-
-      // ── EMPTY: loaded but nothing to show
-      ShowWhen(
-        when: data.apiResponse.isEmpty,
-        child: Center(
-          child: Padding(
-            padding: [12.0, 12.0, 12.0, 12.0],
-            child: Text(text: ["No items found"], textDirection: "ltr"),
-          ),
-        ),
-      ),
-
-      // ── ERROR: show message + retry button
-      ShowWhen(
-        when: data.apiResponse.isError,
-        child: Center(
-          child: Column(
-            mainAxisSize: "min",
-            children: [
-              Padding(
-                padding: [12.0, 0.0, 12.0, 8.0],
-                child: Text(text: ["Couldn't load items"], textDirection: "ltr"),
-              ),
-              GestureDetector(
-                onTap: event "rfw_loaded" {
-                  source: "horizontal_list",
-                  apiCallType: "rest",
-                  requestUrl : "https://mocki.io/v1/eb7be3f6-d425-4444-8534-26e52ed88512"
-                },
-                child: Container(
-                  padding: [12.0, 8.0, 12.0, 8.0],
-                  decoration: {
-                    type: "box",
-                    borderRadius: [ { x: 8.0, y: 8.0 } ],
-                    color: 0xFFEEEEEE
-                  },
-                  child: Text(text: ["Retry"], textDirection: "ltr"),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-
     ],
   ),
 );
@@ -222,9 +172,6 @@ widget root = OnInit(
       'apiResponse': <String, Object>{
         'status': 'idle',
         'isLoading': true,
-        'hasData': false,
-        'isEmpty': false,
-        'isError': false,
         'response': <Object>[],
       },
     });
@@ -262,9 +209,6 @@ widget root = OnInit(
             _data.update('apiResponse', <String, Object>{
               'status': 'loading',
               'isLoading': true,
-              'hasData': false,
-              'isEmpty': false,
-              'isError': false,
               'response': <Object>[],
             });
 
@@ -272,25 +216,16 @@ widget root = OnInit(
               final response = await fetchData(arguments['requestUrl'].toString());
 
               if (response['status'] == 'success') {
-                final dynamic body = response['response'];
-                final List<Object> list =
-                body is List ? List<Object>.from(body) : <Object>[];
 
                 _data.update('apiResponse', <String, Object>{
                   'status': 'success',
                   'isLoading': false,
-                  'hasData': true,
-                  'isEmpty': false,
-                  'isError': false,
-                  'response': body,
+                  'response': response['response'],
                 });
               } else {
                 _data.update('apiResponse', <String, Object>{
                   'status': 'failure',
                   'isLoading': false,
-                  'hasData': false,
-                  'isEmpty': false,
-                  'isError': true,
                   'response': <Object>[],
                 });
               }
@@ -361,14 +296,6 @@ class _ShowWhen extends StatelessWidget {
       show ? (child ?? const SizedBox.shrink()) : (fallback ?? const SizedBox.shrink());
 }
 
-// Simple loader using Material’s CircularProgressIndicator locally.
-class _Loader extends StatelessWidget {
-  const _Loader({this.strokeWidth});
-  final double? strokeWidth;
-  @override
-  Widget build(BuildContext context) =>
-      CircularProgressIndicator(strokeWidth: strokeWidth ?? 4.0);
-}
 
 LocalWidgetLibrary createAppWidgets() {
   return LocalWidgetLibrary(<String, LocalWidgetBuilder>{
@@ -388,10 +315,41 @@ LocalWidgetLibrary createAppWidgets() {
       return _ShowWhen(show: show, child: child, fallback: fallback);
     },
 
-    // Local loader so remote code doesn't need `core.material`
-    'Loader': (BuildContext context, DataSource source) {
-      final double? width = source.v<double>(const <Object>['strokeWidth']);
-      return _Loader(strokeWidth: width);
+    'ShowIfEqString': (BuildContext context, DataSource source) {
+      final String? left = source.v<String>(const <Object>['left']);
+      final String? right = source.v<String>(const <Object>['right']);
+      final bool ignoreCase = source.v<bool>(const <Object>['ignoreCase']) ?? false;
+      final Widget? child = source.optionalChild(const <Object>['child']);
+      final Widget? fallback = source.optionalChild(const <Object>['fallback']);
+      return _ShowIfEqString(
+        left: left,
+        right: right,
+        ignoreCase: ignoreCase,
+        fallback: fallback,
+        child: child,
+      );
     },
   });
+}
+
+class _ShowIfEqString extends StatelessWidget {
+  const _ShowIfEqString({this.left, this.right, this.ignoreCase = false, this.child, this.fallback});
+  final String? left;
+  final String? right;
+  final bool ignoreCase;
+  final Widget? child;
+  final Widget? fallback;
+
+  @override
+  Widget build(BuildContext context) {
+    String? a = left;
+    String? b = right;
+    if (ignoreCase) {
+      a = a?.toLowerCase();
+      b = b?.toLowerCase();
+    }
+    final bool show = (a != null && b != null && a == b);
+    return show ? (child ?? const SizedBox.shrink())
+        : (fallback ?? const SizedBox.shrink());
+  }
 }
