@@ -37,7 +37,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final Runtime _runtime = Runtime();
   late DynamicContent _data;
 
-  bool _isFetching = false; // prevents duplicate in-flight fetches
+  bool _isFetching = false;
 
   static const LibraryName coreName = LibraryName(<String>['core', 'widgets']);
   static const LibraryName appName  = LibraryName(<String>['app']);   // your local lib name
