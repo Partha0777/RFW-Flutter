@@ -73,7 +73,7 @@ widget root = OnInit(
             children: [
               ...for item in data.apiResponse.response:
                 Padding(
-                  padding: [0.0, 0.0, 12.0, 0.0],
+                  padding: [12.0, 12.0, 0.0, 0.0],
                   child: GestureDetector(
                     onTap: event "item_tap" { title: item.title, url: item.image },
                     child: SizedBox(
@@ -82,7 +82,7 @@ widget root = OnInit(
                         mainAxisSize: "min",
                         children: [
                           AspectRatio(
-                            aspectRatio: 1.7777778,
+                            aspectRatio: 1,
                             child: Container(
                               decoration: {
                                 type: "box",
@@ -101,6 +101,7 @@ widget root = OnInit(
                     ),
                   ),
                 ),
+                SizedBox(width: 12.0),
             ],
           ),
         ),
@@ -161,11 +162,11 @@ widget root = OnInit(
   void initState() {
     super.initState();
 
+    fetchRfwData();
     // 1) Register libraries
     _runtime
       ..update(coreName, createCoreWidgets())
-      ..update(appName, createAppWidgets())
-      ..update(mainName, _remoteWidgets);
+      ..update(appName, createAppWidgets());
 
     // 2) Initial content with loader visible
     _data = DynamicContent(<String, Object>{
@@ -250,6 +251,21 @@ widget root = OnInit(
       }
     } catch (_) {
       return {"status": "failure"};
+    }
+  }
+
+   fetchRfwData() async {
+    final url = Uri.parse("https://res.cloudinary.com/curiozing/raw/upload/v1754219870/grftexample_vziuns.rfw");
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = response.bodyBytes;
+        _runtime.update(mainName, decodeLibraryBlob(data));
+      } else {
+
+      }
+    } catch (_) {
+
     }
   }
 }
