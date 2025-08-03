@@ -46,9 +46,6 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-
-    fetchRfwData();
-    // 1) Register libraries
     _runtime
       ..update(coreName, createCoreWidgets())
       ..update(appName, createAppWidgets());
@@ -70,56 +67,66 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
-      body: RemoteWidget(
-        runtime: _runtime,
-        data: _data,
-        widget: const FullyQualifiedWidgetName(mainName, 'root'),
-        onEvent: (String name, DynamicMap arguments) async {
-          if (name == 'item_tap') {
-            final who = (arguments['title'] ?? 'there').toString();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Hi $who 👋'),
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 2),
-              ),
+      body: FutureBuilder(
+        future: fetchRfwData(),
+        builder: (context, asyncSnapshot) {
+          if(asyncSnapshot.data != null){
+            _runtime.update(mainName,asyncSnapshot.data as WidgetLibrary);
+            return RemoteWidget(
+              runtime: _runtime,
+              data: _data,
+              widget: const FullyQualifiedWidgetName(mainName, 'root'),
+              onEvent: (String name, DynamicMap arguments) async {
+                if (name == 'item_tap') {
+                  final who = (arguments['title'] ?? 'there').toString();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Hi $who 👋'),
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                  return;
+                }
+
+                if (name == 'rfw_loaded') {
+                  if (_isFetching) return; // ignore while an earlier fetch is running
+                  _isFetching = true;
+
+                  // Show loader immediately
+                  _data.update('apiResponse', <String, Object>{
+                    'status': 'loading',
+                    'isLoading': true,
+                    'response': <Object>[],
+                  });
+
+                  if (arguments['apiCallType'] == 'rest') {
+                    final response = await fetchData(arguments['requestUrl'].toString());
+
+                    if (response['status'] == 'success') {
+
+                      _data.update('apiResponse', <String, Object>{
+                        'status': 'success',
+                        'isLoading': false,
+                        'response': response['response'],
+                      });
+                    } else {
+                      _data.update('apiResponse', <String, Object>{
+                        'status': 'failure',
+                        'isLoading': false,
+                        'response': <Object>[],
+                      });
+                    }
+                  }
+
+                  _isFetching = false;
+                }
+              },
             );
-            return;
+          }else{
+            return SizedBox();
           }
-
-          if (name == 'rfw_loaded') {
-            if (_isFetching) return; // ignore while an earlier fetch is running
-            _isFetching = true;
-
-            // Show loader immediately
-            _data.update('apiResponse', <String, Object>{
-              'status': 'loading',
-              'isLoading': true,
-              'response': <Object>[],
-            });
-
-            if (arguments['apiCallType'] == 'rest') {
-              final response = await fetchData(arguments['requestUrl'].toString());
-
-              if (response['status'] == 'success') {
-
-                _data.update('apiResponse', <String, Object>{
-                  'status': 'success',
-                  'isLoading': false,
-                  'response': response['response'],
-                });
-              } else {
-                _data.update('apiResponse', <String, Object>{
-                  'status': 'failure',
-                  'isLoading': false,
-                  'response': <Object>[],
-                });
-              }
-            }
-
-            _isFetching = false;
-          }
-        },
+        }
       ),
     );
   }
@@ -139,18 +146,18 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-   fetchRfwData() async {
+   Future<RemoteWidgetLibrary?> fetchRfwData() async {
     final url = Uri.parse("https://res.cloudinary.com/curiozing/raw/upload/v1754219870/grftexample_vziuns.rfw");
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final data = response.bodyBytes;
-        _runtime.update(mainName, decodeLibraryBlob(data));
+       return decodeLibraryBlob(data);
       } else {
-
+        return null;
       }
     } catch (_) {
-
+      return null;
     }
   }
 }
