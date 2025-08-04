@@ -71,8 +71,8 @@ class _MyHomePageState extends State<MyHomePage> {
         future: fetchRfwData(),
         builder: (context, asyncSnapshot) {
           if(asyncSnapshot.data != null){
-            _runtime.update(mainName, _remoteWidgets);
-           // _runtime.update(mainName,asyncSnapshot.data as WidgetLibrary);
+            //_runtime.update(mainName, _remoteWidgets);
+            _runtime.update(mainName,asyncSnapshot.data as WidgetLibrary);
             return RemoteWidget(
               runtime: _runtime,
               data: _data,
@@ -109,7 +109,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       _data.update('apiResponse', <String, Object>{
                         'status': 'success',
                         'isLoading': false,
-                        'response': response['response']['response'],
+                        'response': response['response'],
                       });
                     } else {
                       _data.update('apiResponse', <String, Object>{
@@ -153,7 +153,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final vPageExample = Uri.parse("https://res.cloudinary.com/curiozing/raw/upload/v1754237037/grftexample2_xxsgdw.rfw");
 
     try {
-      final response = await http.get(vPageExample);
+      final response = await http.get(hListExample);
       if (response.statusCode == 200) {
         final data = response.bodyBytes;
        return decodeLibraryBlob(data);
