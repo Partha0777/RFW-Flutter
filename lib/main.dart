@@ -16,7 +16,6 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'RFW Demo',
       theme: ThemeData(
-
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
       home: const MyHomePage(title: 'RFW Demo'),
@@ -24,9 +23,9 @@ class MyApp extends StatelessWidget {
   }
 }
 
-
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
+
   final String title;
 
   @override
@@ -40,7 +39,9 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _isFetching = false;
 
   static const LibraryName coreName = LibraryName(<String>['core', 'widgets']);
-  static const LibraryName appName  = LibraryName(<String>['app']);   // your local lib name
+  static const LibraryName appName = LibraryName(<String>[
+    'app',
+  ]); // your local lib name
   static const LibraryName mainName = LibraryName(<String>['main']);
 
   @override
@@ -70,9 +71,9 @@ class _MyHomePageState extends State<MyHomePage> {
       body: FutureBuilder(
         future: fetchRfwData(),
         builder: (context, asyncSnapshot) {
-          if(asyncSnapshot.data != null){
+          if (asyncSnapshot.data != null) {
             //_runtime.update(mainName, _remoteWidgets);
-            _runtime.update(mainName,asyncSnapshot.data as WidgetLibrary);
+            _runtime.update(mainName, asyncSnapshot.data as WidgetLibrary);
             return RemoteWidget(
               runtime: _runtime,
               data: _data,
@@ -91,7 +92,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 }
 
                 if (name == 'rfw_loaded') {
-                  if (_isFetching) return; // ignore while an earlier fetch is running
+                  if (_isFetching)
+                    return; // ignore while an earlier fetch is running
                   _isFetching = true;
 
                   // Show loader immediately
@@ -102,10 +104,11 @@ class _MyHomePageState extends State<MyHomePage> {
                   });
 
                   if (arguments['apiCallType'] == 'rest') {
-                    final response = await fetchData(arguments['requestUrl'].toString());
+                    final response = await fetchData(
+                      arguments['requestUrl'].toString(),
+                    );
 
                     if (response['status'] == 'success') {
-
                       _data.update('apiResponse', <String, Object>{
                         'status': 'success',
                         'isLoading': false,
@@ -124,10 +127,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 }
               },
             );
-          }else{
+          } else {
             return SizedBox();
           }
-        }
+        },
       ),
     );
   }
@@ -147,16 +150,22 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-   Future<RemoteWidgetLibrary?> fetchRfwData() async {
-    final hListExample = Uri.parse("https://res.cloudinary.com/curiozing/raw/upload/v1754219870/grftexample_vziuns.rfw");
-    final vListExample = Uri.parse("https://res.cloudinary.com/curiozing/raw/upload/v1754234779/grftexample1_pq2opf.rfw");
-    final vPageExample = Uri.parse("https://res.cloudinary.com/curiozing/raw/upload/v1754237037/grftexample2_xxsgdw.rfw");
+  Future<RemoteWidgetLibrary?> fetchRfwData() async {
+    final hListExample = Uri.parse(
+      "https://res.cloudinary.com/curiozing/raw/upload/v1754219870/grftexample_vziuns.rfw",
+    );
+    final vListExample = Uri.parse(
+      "https://res.cloudinary.com/curiozing/raw/upload/v1754234779/grftexample1_pq2opf.rfw",
+    );
+    final vPageExample = Uri.parse(
+      "https://res.cloudinary.com/curiozing/raw/upload/v1754237037/grftexample2_xxsgdw.rfw",
+    );
 
     try {
       final response = await http.get(hListExample);
       if (response.statusCode == 200) {
         final data = response.bodyBytes;
-       return decodeLibraryBlob(data);
+        return decodeLibraryBlob(data);
       } else {
         return null;
       }
@@ -172,6 +181,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
 class _OnInit extends StatefulWidget {
   const _OnInit({required this.onInit, required this.child});
+
   final VoidCallback? onInit;
   final Widget child;
 
@@ -199,31 +209,35 @@ class _OnInitState extends State<_OnInit> {
 
 class _ShowWhen extends StatelessWidget {
   const _ShowWhen({required this.show, this.child, this.fallback});
+
   final bool show;
   final Widget? child;
   final Widget? fallback;
 
   @override
-  Widget build(BuildContext context) =>
-      show ? (child ?? const SizedBox.shrink()) : (fallback ?? const SizedBox.shrink());
+  Widget build(BuildContext context) => show
+      ? (child ?? const SizedBox.shrink())
+      : (fallback ?? const SizedBox.shrink());
 }
 
 typedef IntCallback = void Function(int);
 
-
 LocalWidgetLibrary createAppWidgets() {
   return LocalWidgetLibrary(<String, LocalWidgetBuilder>{
     'OnInit': (BuildContext context, DataSource source) {
-      final child = source.optionalChild(const <Object>['child']) ?? const SizedBox.shrink();
+      final child =
+          source.optionalChild(const <Object>['child']) ??
+          const SizedBox.shrink();
       final onInit = source.voidHandler(const <Object>['onInit']);
       return _OnInit(onInit: onInit, child: child);
     },
 
     // ShowWhen: reads `when:` (preferred) or `show:` for backward-compat
     'ShowWhen': (BuildContext context, DataSource source) {
-      final bool show = (source.v<bool>(const <Object>['when'])
-          ?? source.v<bool>(const <Object>['show'])
-          ?? false);
+      final bool show =
+          (source.v<bool>(const <Object>['when']) ??
+          source.v<bool>(const <Object>['show']) ??
+          false);
       final Widget? child = source.optionalChild(const <Object>['child']);
       final Widget? fallback = source.optionalChild(const <Object>['fallback']);
       return _ShowWhen(show: show, child: child, fallback: fallback);
@@ -232,7 +246,8 @@ LocalWidgetLibrary createAppWidgets() {
     'ShowIfEqString': (BuildContext context, DataSource source) {
       final String? left = source.v<String>(const <Object>['left']);
       final String? right = source.v<String>(const <Object>['right']);
-      final bool ignoreCase = source.v<bool>(const <Object>['ignoreCase']) ?? false;
+      final bool ignoreCase =
+          source.v<bool>(const <Object>['ignoreCase']) ?? false;
       final Widget? child = source.optionalChild(const <Object>['child']);
       final Widget? fallback = source.optionalChild(const <Object>['fallback']);
       return _ShowIfEqString(
@@ -251,12 +266,12 @@ LocalWidgetLibrary createAppWidgets() {
       // Read as double first; if null, try int and convert
       double viewportMinus =
           source.v<double>(<Object>['viewportMinus']) ??
-              (source.v<int>(<Object>['viewportMinus'])?.toDouble() ?? 0.0);
+          (source.v<int>(<Object>['viewportMinus'])?.toDouble() ?? 0.0);
 
       // Optional absolute page height override; if provided, it wins
       final double? pageHeightArg =
           source.v<double>(<Object>['pageHeight']) ??
-              source.v<int>(<Object>['pageHeight'])?.toDouble();
+          source.v<int>(<Object>['pageHeight'])?.toDouble();
 
       // Children: each is one "page"
       final List<Widget> pages = source.childList(<Object>['children']);
@@ -268,8 +283,10 @@ LocalWidgetLibrary createAppWidgets() {
               pageHeightArg ?? (constraints.maxHeight - viewportMinus);
 
           if (!baseHeight.isFinite) baseHeight = constraints.maxHeight;
-          final double effectiveHeight =
-          baseHeight.clamp(0.0, constraints.maxHeight);
+          final double effectiveHeight = baseHeight.clamp(
+            0.0,
+            constraints.maxHeight,
+          );
 
           final List<Widget> sizedPages = <Widget>[
             for (final Widget child in pages)
@@ -290,129 +307,140 @@ LocalWidgetLibrary createAppWidgets() {
       );
     },
     'HorizontalPager': (BuildContext context, DataSource source) {
-          // ── Scalars
-          final int initialPage = source.v<int>(['initialPage']) ?? 0;
+      // ── Scalars
+      final int initialPage = source.v<int>(['initialPage']) ?? 0;
 
-          final double viewportFraction =
-              source.v<double>(['viewportFraction']) ??
-                  (source.v<int>(['viewportFraction'])?.toDouble() ?? 0.82); // peek
+      final double viewportFraction =
+          source.v<double>(['viewportFraction']) ??
+          (source.v<int>(['viewportFraction'])?.toDouble() ?? 0.82); // peek
 
-          final bool pageSnapping = source.v<bool>(['pageSnapping']) ?? true;
-          final bool reverse      = source.v<bool>(['reverse'])      ?? false;
-          final bool padEnds      = source.v<bool>(['padEnds'])      ?? true;
+      final bool pageSnapping = source.v<bool>(['pageSnapping']) ?? true;
+      final bool reverse = source.v<bool>(['reverse']) ?? false;
+      final bool padEnds = source.v<bool>(['padEnds']) ?? true;
 
-          // Height control
-          final double? heightArg =
-              source.v<double>(['height']) ??
-                  source.v<int>(['height'])?.toDouble();
+      // Height control
+      final double? heightArg =
+          source.v<double>(['height']) ?? source.v<int>(['height'])?.toDouble();
 
-          final double viewportMinus =
-              source.v<double>(['viewportMinus']) ??
-                  (source.v<int>(['viewportMinus'])?.toDouble() ?? 0.0);
+      final double viewportMinus =
+          source.v<double>(['viewportMinus']) ??
+          (source.v<int>(['viewportMinus'])?.toDouble() ?? 0.0);
 
-          // Spacing & focus visuals
-          final double itemSpacing =
-              source.v<double>(['itemSpacing']) ??
-                  (source.v<int>(['itemSpacing'])?.toDouble() ?? 12.0);
+      // Spacing & focus visuals
+      final double itemSpacing =
+          source.v<double>(['itemSpacing']) ??
+          (source.v<int>(['itemSpacing'])?.toDouble() ?? 12.0);
 
-          final double minScale =
-              source.v<double>(['minScale']) ??
-                  (source.v<int>(['minScale'])?.toDouble() ?? 0.90);  // side size
+      final double minScale =
+          source.v<double>(['minScale']) ??
+          (source.v<int>(['minScale'])?.toDouble() ?? 0.90); // side size
 
-          final double maxScale =
-              source.v<double>(['maxScale']) ??
-                  (source.v<int>(['maxScale'])?.toDouble() ?? 1.10);  // center size
+      final double maxScale =
+          source.v<double>(['maxScale']) ??
+          (source.v<int>(['maxScale'])?.toDouble() ?? 1.10); // center size
 
-          final double sideOpacity =
-              source.v<double>(['sideOpacity']) ??
-                  (source.v<int>(['sideOpacity'])?.toDouble() ?? 1.0); // e.g., 0.8 to dim sides
+      final double sideOpacity =
+          source.v<double>(['sideOpacity']) ??
+          (source.v<int>(['sideOpacity'])?.toDouble() ??
+              1.0); // e.g., 0.8 to dim sides
 
-          // Typed handler generator: send a map {index: <int>}
-          final IntCallback? onPageChanged =
-          source.handler<IntCallback>(['onPageChanged'], (trigger) {
-            return (int index) => trigger(<String, Object?>{'index': index});
-          });
+      // Typed handler generator: send a map {index: <int>}
+      final IntCallback? onPageChanged = source.handler<IntCallback>(
+        ['onPageChanged'],
+        (trigger) {
+          return (int index) => trigger(<String, Object?>{'index': index});
+        },
+      );
 
-          // Children (cards)
-          final List<Widget> pages = source.childList(['children']);
+      // Children (cards)
+      final List<Widget> pages = source.childList(['children']);
 
-          return LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints constraints) {
-              // Effective height for the band
-              double effectiveHeight;
-              if (heightArg != null) {
-                effectiveHeight = heightArg;
-              } else {
-                double h = constraints.maxHeight;
-                if (!h.isFinite) h = 240.0;
-                double candidate = h - viewportMinus;
-                if (!candidate.isFinite || candidate <= 0) candidate = 240.0;
-                effectiveHeight = candidate;
-              }
+      return LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          // Effective height for the band
+          double effectiveHeight;
+          if (heightArg != null) {
+            effectiveHeight = heightArg;
+          } else {
+            double h = constraints.maxHeight;
+            if (!h.isFinite) h = 240.0;
+            double candidate = h - viewportMinus;
+            if (!candidate.isFinite || candidate <= 0) candidate = 240.0;
+            effectiveHeight = candidate;
+          }
 
-              // Build controller with peek
-              final controller = PageController(
-                initialPage: initialPage,
-                viewportFraction: viewportFraction.clamp(0.1, 1.0),
-              );
+          // Build controller with peek
+          final controller = PageController(
+            initialPage: initialPage,
+            viewportFraction: viewportFraction.clamp(0.1, 1.0),
+          );
 
-              // Use builder so we can scale per-index based on controller.page
-              return SizedBox(
-                height: effectiveHeight,
-                child: PageView.builder(
-                  controller: controller,
-                  scrollDirection: Axis.horizontal,
-                  pageSnapping: pageSnapping,
-                  reverse: reverse,
-                  padEnds: padEnds,
-                  itemCount: pages.length,
-                  onPageChanged: (int index) => onPageChanged?.call(index),
-                  itemBuilder: (context, index) {
-                    return AnimatedBuilder(
-                      animation: controller,
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: itemSpacing / 2),
-                        child: pages[index],
-                      ),
-                      builder: (context, child) {
-                        // Current scroll position → compute distance from this index
-                        double page = initialPage.toDouble();
-                        if (controller.hasClients && controller.position.haveDimensions) {
-                          page = controller.page ?? controller.initialPage.toDouble();
-                        }
+          // Use builder so we can scale per-index based on controller.page
+          return SizedBox(
+            height: effectiveHeight,
+            child: PageView.builder(
+              controller: controller,
+              scrollDirection: Axis.horizontal,
+              pageSnapping: pageSnapping,
+              reverse: reverse,
+              padEnds: padEnds,
+              itemCount: pages.length,
+              onPageChanged: (int index) => onPageChanged?.call(index),
+              itemBuilder: (context, index) {
+                return AnimatedBuilder(
+                  animation: controller,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: itemSpacing / 2),
+                    child: pages[index],
+                  ),
+                  builder: (context, child) {
+                    // Current scroll position → compute distance from this index
+                    double page = initialPage.toDouble();
+                    if (controller.hasClients &&
+                        controller.position.haveDimensions) {
+                      page =
+                          controller.page ?? controller.initialPage.toDouble();
+                    }
 
-                        final double dist = (page - index).abs();
-                        // t = 1 at center, → 0 when ≥1 page away
-                        final double t = (1.0 - dist).clamp(0.0, 1.0);
-                        final double scale =
-                        (minScale + (maxScale - minScale) * t).clamp(minScale, maxScale);
-                        final double opacity =
+                    final double dist = (page - index).abs();
+                    // t = 1 at center, → 0 when ≥1 page away
+                    final double t = (1.0 - dist).clamp(0.0, 1.0);
+                    final double scale = (minScale + (maxScale - minScale) * t)
+                        .clamp(minScale, maxScale);
+                    final double opacity =
                         (sideOpacity + (1.0 - sideOpacity) * t).clamp(0.0, 1.0);
 
-                        // Scale around center; allow slight overflow visually
-                        return Center(
-                          child: Opacity(
-                            opacity: opacity,
-                            child: Transform.scale(
-                              scale: scale,
-                              alignment: Alignment.center,
-                              child: child,
-                            ),
-                          ),
-                        );
-                      },
+                    // Scale around center; allow slight overflow visually
+                    return Center(
+                      child: Opacity(
+                        opacity: opacity,
+                        child: Transform.scale(
+                          scale: scale,
+                          alignment: Alignment.center,
+                          child: child,
+                        ),
+                      ),
                     );
                   },
-                ),
-              );
-            },
+                );
+              },
+            ),
           );
         },
+      );
+    },
   });
 }
 
 class _ShowIfEqString extends StatelessWidget {
-  const _ShowIfEqString({this.left, this.right, this.ignoreCase = false, this.child, this.fallback});
+  const _ShowIfEqString({
+    this.left,
+    this.right,
+    this.ignoreCase = false,
+    this.child,
+    this.fallback,
+  });
+
   final String? left;
   final String? right;
   final bool ignoreCase;
@@ -428,11 +456,11 @@ class _ShowIfEqString extends StatelessWidget {
       b = b?.toLowerCase();
     }
     final bool show = (a != null && b != null && a == b);
-    return show ? (child ?? const SizedBox.shrink())
+    return show
+        ? (child ?? const SizedBox.shrink())
         : (fallback ?? const SizedBox.shrink());
   }
 }
-
 
 final RemoteWidgetLibrary _remoteWidgets = parseLibraryFile(r'''
 import core.widgets;
@@ -567,4 +595,3 @@ widget root = OnInit(
   ),
 );
 ''');
-
