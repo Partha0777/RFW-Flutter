@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:rfw/formats.dart';
 import 'package:rfw/rfw.dart';
 
 void main() {
@@ -70,7 +71,8 @@ class _MyHomePageState extends State<MyHomePage> {
         future: fetchRfwData(),
         builder: (context, asyncSnapshot) {
           if(asyncSnapshot.data != null){
-            _runtime.update(mainName,asyncSnapshot.data as WidgetLibrary);
+            _runtime.update(mainName, _remoteWidgets);
+           // _runtime.update(mainName,asyncSnapshot.data as WidgetLibrary);
             return RemoteWidget(
               runtime: _runtime,
               data: _data,
@@ -107,7 +109,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       _data.update('apiResponse', <String, Object>{
                         'status': 'success',
                         'isLoading': false,
-                        'response': response['response'],
+                        'response': response['response']['response'],
                       });
                     } else {
                       _data.update('apiResponse', <String, Object>{
@@ -206,6 +208,8 @@ class _ShowWhen extends StatelessWidget {
       show ? (child ?? const SizedBox.shrink()) : (fallback ?? const SizedBox.shrink());
 }
 
+typedef IntCallback = void Function(int);
+
 
 LocalWidgetLibrary createAppWidgets() {
   return LocalWidgetLibrary(<String, LocalWidgetBuilder>{
@@ -285,6 +289,125 @@ LocalWidgetLibrary createAppWidgets() {
         },
       );
     },
+    'HorizontalPager': (BuildContext context, DataSource source) {
+          // ── Scalars
+          final int initialPage = source.v<int>(['initialPage']) ?? 0;
+
+          final double viewportFraction =
+              source.v<double>(['viewportFraction']) ??
+                  (source.v<int>(['viewportFraction'])?.toDouble() ?? 0.82); // peek
+
+          final bool pageSnapping = source.v<bool>(['pageSnapping']) ?? true;
+          final bool reverse      = source.v<bool>(['reverse'])      ?? false;
+          final bool padEnds      = source.v<bool>(['padEnds'])      ?? true;
+
+          // Height control
+          final double? heightArg =
+              source.v<double>(['height']) ??
+                  source.v<int>(['height'])?.toDouble();
+
+          final double viewportMinus =
+              source.v<double>(['viewportMinus']) ??
+                  (source.v<int>(['viewportMinus'])?.toDouble() ?? 0.0);
+
+          // Spacing & focus visuals
+          final double itemSpacing =
+              source.v<double>(['itemSpacing']) ??
+                  (source.v<int>(['itemSpacing'])?.toDouble() ?? 12.0);
+
+          final double minScale =
+              source.v<double>(['minScale']) ??
+                  (source.v<int>(['minScale'])?.toDouble() ?? 0.90);  // side size
+
+          final double maxScale =
+              source.v<double>(['maxScale']) ??
+                  (source.v<int>(['maxScale'])?.toDouble() ?? 1.10);  // center size
+
+          final double sideOpacity =
+              source.v<double>(['sideOpacity']) ??
+                  (source.v<int>(['sideOpacity'])?.toDouble() ?? 1.0); // e.g., 0.8 to dim sides
+
+          // Typed handler generator: send a map {index: <int>}
+          final IntCallback? onPageChanged =
+          source.handler<IntCallback>(['onPageChanged'], (trigger) {
+            return (int index) => trigger(<String, Object?>{'index': index});
+          });
+
+          // Children (cards)
+          final List<Widget> pages = source.childList(['children']);
+
+          return LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              // Effective height for the band
+              double effectiveHeight;
+              if (heightArg != null) {
+                effectiveHeight = heightArg;
+              } else {
+                double h = constraints.maxHeight;
+                if (!h.isFinite) h = 240.0;
+                double candidate = h - viewportMinus;
+                if (!candidate.isFinite || candidate <= 0) candidate = 240.0;
+                effectiveHeight = candidate;
+              }
+
+              // Build controller with peek
+              final controller = PageController(
+                initialPage: initialPage,
+                viewportFraction: viewportFraction.clamp(0.1, 1.0),
+              );
+
+              // Use builder so we can scale per-index based on controller.page
+              return SizedBox(
+                height: effectiveHeight,
+                child: PageView.builder(
+                  controller: controller,
+                  scrollDirection: Axis.horizontal,
+                  pageSnapping: pageSnapping,
+                  reverse: reverse,
+                  padEnds: padEnds,
+                  itemCount: pages.length,
+                  onPageChanged: (int index) => onPageChanged?.call(index),
+                  itemBuilder: (context, index) {
+                    return AnimatedBuilder(
+                      animation: controller,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: itemSpacing / 2),
+                        child: pages[index],
+                      ),
+                      builder: (context, child) {
+                        // Current scroll position → compute distance from this index
+                        double page = initialPage.toDouble();
+                        if (controller.hasClients && controller.position.haveDimensions) {
+                          page = controller.page ?? controller.initialPage.toDouble();
+                        }
+
+                        final double dist = (page - index).abs();
+                        // t = 1 at center, → 0 when ≥1 page away
+                        final double t = (1.0 - dist).clamp(0.0, 1.0);
+                        final double scale =
+                        (minScale + (maxScale - minScale) * t).clamp(minScale, maxScale);
+                        final double opacity =
+                        (sideOpacity + (1.0 - sideOpacity) * t).clamp(0.0, 1.0);
+
+                        // Scale around center; allow slight overflow visually
+                        return Center(
+                          child: Opacity(
+                            opacity: opacity,
+                            child: Transform.scale(
+                              scale: scale,
+                              alignment: Alignment.center,
+                              child: child,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              );
+            },
+          );
+        },
   });
 }
 
@@ -309,3 +432,138 @@ class _ShowIfEqString extends StatelessWidget {
         : (fallback ?? const SizedBox.shrink());
   }
 }
+
+final RemoteWidgetLibrary _remoteWidgets = parseLibraryFile(r'''
+import core.widgets;
+import app;  // exposes HorizontalPager + OnInit + ShowWhen + ShowIfEqString
+
+widget root = OnInit(
+  onInit: event "rfw_loaded" {
+    source: "horizontal_product_slider",
+    apiCallType: "rest",
+    requestUrl: "https://mocki.io/v1/7a6e16f8-9f50-486a-811b-96f3b84bcf07"
+  },
+
+  child: Stack(
+    children: [
+
+      // CONTENT
+      ShowIfEqString(
+        left: data.apiResponse.status,
+        right: "success",
+        child: Column(
+          mainAxisSize: "min",
+          crossAxisAlignment: "stretch",
+          children: [
+            Padding(
+              padding: [12.0, 8.0, 12.0, 0.0],
+              child: Row(
+                mainAxisSize: "min",
+                crossAxisAlignment: "center",
+                children: [
+                  Expanded(child: Text(text: ["Featured"], textDirection: "ltr")),
+                  GestureDetector(
+                    onTap: event "see_all" {},
+                    child: Text(text: ["See all"], textDirection: "ltr"),
+                  ),
+                ],
+              ),
+            ),
+
+            // Height controls the band; viewportFraction makes next card peek
+            HorizontalPager(
+              height: 300.0,           // or use viewportMinus if needed
+              viewportFraction: 0.5,  // 0.8..0.9 for peek
+              itemSpacing: 12.0,
+              preloadPagesCount: 10,  // enable if you used the preloading variant
+              // onPageChanged: event "carousel_page_changed" { index: data.index },
+              children: [
+                ...for item in data.apiResponse.response:
+                  GestureDetector(
+                    onTap: event "product_tap" {
+                      id: item.id, title: item.title, price: item.price, image: item.image, url: item.url
+                    },
+                    child: Column(
+                      mainAxisSize: "min",
+                      crossAxisAlignment: "stretch",
+                      children: [
+                        AspectRatio(
+                          aspectRatio: 1.2,
+                          child: Container(
+                            decoration: {
+                              type: "box",
+                              borderRadius: [ { x: 12.0, y: 12.0 } ],
+                              image: { source: item.image, fit: "cover" }
+                            },
+                          ),
+                        ),
+                        SizedBox(height: 8.0),
+                        Padding(
+                          padding: [4.0, 0.0, 4.0, 0.0],
+                          child: Text(text: [ item.title ], textDirection: "ltr"),
+                        ),
+                        SizedBox(height: 4.0),
+                        Padding(
+                          padding: [4.0, 0.0, 4.0, 0.0],
+                          child: Text(text: [ item.price ], textDirection: "ltr"),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+
+      // LOADING (skeleton)
+      ShowWhen(
+        when: data.apiResponse.isLoading,
+        child: HorizontalPager(
+          viewportFraction: 0.82,
+          itemSpacing: 12.0,
+          children: [
+            ...for i in [0,1,2,3,4]:
+              Column(
+                mainAxisSize: "min",
+                crossAxisAlignment: "stretch",
+                children: [
+                  AspectRatio(
+                    aspectRatio: 0.75,
+                    child: Container(
+                      decoration: {
+                        type: "box",
+                        borderRadius: [ { x: 12.0, y: 12.0 } ],
+                        color: 0xFFEAEAEA
+                      },
+                    ),
+                  ),
+                  SizedBox(height: 8.0),
+                  Container(
+                    height: 12.0,
+                    decoration: {
+                      type: "box",
+                      borderRadius: [ { x: 6.0, y: 6.0 } ],
+                      color: 0xFFE0E0E0
+                    },
+                  ),
+                  SizedBox(height: 6.0),
+                  Container(
+                    height: 12.0,
+                    width: 60.0,
+                    decoration: {
+                      type: "box",
+                      borderRadius: [ { x: 6.0, y: 6.0 } ],
+                      color: 0xFFE6E6E6
+                    },
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    ],
+  ),
+);
+''');
+
